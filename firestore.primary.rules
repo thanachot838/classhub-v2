@@ -1,0 +1,30 @@
+// deploy ไฟล์นี้กับโปรเจกต์ PRIMARY เท่านั้น (เก็บ users / homework / settings / finance_summary)
+// ดู SETUP.md หัวข้อ "2. ตั้งค่า Firestore Security Rules" สำหรับคำสั่ง deploy แยกโปรเจกต์
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn(){ return request.auth != null; }
+    function myRole(){ return get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role; }
+    function isAdmin(){ return signedIn() && myRole() == 'admin'; }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow update: if request.auth.uid == uid
+        && request.resource.data.role == resource.data.role; // กันยกตัวเองเป็น admin
+      allow create, delete: if isAdmin();
+    }
+
+    match /finance_summary/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+
+    match /homework/{taskId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+      match /submissions/{uid} {
+        allow read: if signedIn();
+        allow write: if isAdmin() || request.auth.uid == uid; // ส่งงานของตัวเอง
+      }
+    }
+
+    match /settings/{doc} { allow read: if signedIn(); allow write: if isAdmin(); }
+  }
+}

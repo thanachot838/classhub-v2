@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #6c5ce7;
+  --brand-soft: #a29bfe;
+  --ok: #00b894;
+  --warn: #fdcb6e;
+  --danger: #ff7675;
+  --pending: #74b9ff;
+  --radius: 20px;
+  --blur: 14px;
+  --glass: rgba(255, 255, 255, 0.62);
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Sarabun', system-ui, sans-serif;
+  background: linear-gradient(160deg, #eef0ff 0%, #f7f5ff 40%, #fff 100%);
+  color: #2d2d3a;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- Glass card: the one reusable design token for the whole app ---- */
+.glass-card {
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Big card buttons instead of dropdowns (thumb-friendly) ---- */
+.card-button {
+  @apply glass-card flex flex-col items-center justify-center gap-2 p-5 text-center transition-transform active:scale-95;
+}
+
+.status-chip {
+  @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium;
+}
+.status-chip.ok {
+  background: color-mix(in srgb, var(--ok) 18%, white);
+  color: #046c53;
+}
+.status-chip.danger {
+  background: color-mix(in srgb, var(--danger) 18%, white);
+  color: #a12a27;
+}
+.status-chip.pending {
+  background: color-mix(in srgb, var(--pending) 18%, white);
+  color: #1c5c96;
+}
