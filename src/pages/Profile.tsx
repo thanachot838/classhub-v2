@@ -21,7 +21,7 @@ async function fetchTheme(): Promise<ThemeSettings> {
 
 /** เปลี่ยนรหัสผ่านพร้อมกันทั้ง 2 โปรเจกต์ ไม่งั้นรหัสจะไม่ตรงกันอีกต่อไป (ดู SETUP.md ข้อ 3/8) */
 function ChangePasswordForm() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, profile } = useAuth();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [status, setStatus] = useState<'idle' | 'ok' | 'error'>('idle');
@@ -41,6 +41,17 @@ function ChangePasswordForm() {
       if (authSecondary.currentUser) {
         await reauthenticateWithCredential(authSecondary.currentUser, cred);
         await updatePassword(authSecondary.currentUser, next);
+      }
+      // เคลียร์ mustChangePassword หลังเปลี่ยนรหัสสำเร็จ ไม่งั้นคำเตือนจะค้างตลอดไป
+      // (mustChangePassword เก็บอยู่ในโปรเจกต์ primary เท่านั้น ตาม schema)
+      if (profile?.mustChangePassword) {
+        // ไม่ต้อง invalidate query เพิ่ม เพราะ AuthContext ใช้ onSnapshot ฟัง
+        // users/{uid} อยู่แล้ว จึงอัปเดต profile.mustChangePassword ให้อัตโนมัติทันที
+        await setDoc(
+          doc(db, 'users', firebaseUser.uid),
+          { mustChangePassword: false },
+          { merge: true }
+        );
       }
       setStatus('ok');
       setCurrent('');

@@ -1,9 +1,8 @@
 # คู่มือ Setup ClassHub v2
 
 โปรเจกต์นี้สร้างตามเอกสารออกแบบ (Design Spec) — โครง React + Vite + TypeScript +
-Tailwind พร้อม Firebase / Cloudinary / jsPDF ครบไฟล์ให้รันได้ทันที ส่วนที่ยังเป็น
-**TODO** คือ UI รายละเอียดของโมดูล 2–5 (มีคอมเมนต์กำกับไว้ในแต่ละไฟล์) ส่วนโมดูล 1
-(เช็คชื่อ & ทำเวร) ทำให้ครบทั้ง flow แล้วเป็นตัวอย่าง
+Tailwind พร้อม Firebase (2 โปรเจกต์) / Cloudinary / jsPDF **ครบทั้ง 5 โมดูลแล้ว**
+พร้อมใช้งานจริง (ดูเช็คลิสต์ท้ายไฟล์นี้สำหรับสิ่งที่เหลือให้ปรับแต่งเพิ่มเติม)
 
 ## 0. ติดตั้ง dependencies
 
@@ -93,9 +92,16 @@ Auth ของระบบนี้ map "รหัสนักเรียน 5 
    { "role": "admin" }
    ```
 
-⚠️ ขั้นตอนนี้ทำมือ 2 รอบต่อผู้ใช้ 1 คน ถ้าห้องมีนักเรียนเยอะ แนะนำเขียนสคริปต์ Node.js
-เรียก Firebase Admin SDK สร้างทั้ง 2 โปรเจกต์พร้อมกันแทนการกดทีละคนใน Console
-(อยู่นอกขอบเขตของโค้ดชุดนี้ — บอกได้ถ้าต้องการให้เขียนสคริปต์นี้เพิ่ม)
+**ทางลัด (แนะนำถ้าห้องมีนักเรียนหลายคน):** ไม่ต้องทำมือ 2 รอบต่อคนตามข้อข้างบน — ใช้สคริปต์
+`scripts/create-user.js` (ทีละคน) หรือ `scripts/bulk-create-users.js` (ทีเดียวหลายคนจาก
+`scripts/roster.json`) ที่มีอยู่ในโปรเจกต์แล้ว ซึ่งเรียก Firebase Admin SDK สร้างบัญชี "คู่แฝด"
+ในทั้ง 2 โปรเจกต์พร้อมกันให้อัตโนมัติ — ต้องมี `scripts/serviceAccount.primary.json` และ
+`scripts/serviceAccount.secondary.json` ก่อน (ดูวิธีดาวน์โหลดในคอมเมนต์บนสุดของไฟล์สคริปต์):
+
+```bash
+node scripts/create-user.js -- --id 00001 --name "ครูแอดมิน" --password "รหัสผ่านชั่วคราว" --role admin
+node scripts/bulk-create-users.js   # อ่านรายชื่อจาก scripts/roster.json
+```
 
 ## 4. ตั้งค่า Cloudinary (ฟรี ไม่ผูกบัตร)
 
@@ -107,10 +113,26 @@ Auth ของระบบนี้ map "รหัสนักเรียน 5 
    - Folder: จำกัดไว้ล่วงหน้าได้ถ้าต้องการ
    - แนะนำจำกัด: Max file size, Allowed formats (jpg, png, webp) เพื่อกัน spam
      (unsigned preset ใครมี cloud_name ก็อัปได้ ตามคำเตือนในเอกสารออกแบบข้อ 8)
-4. คัดลอก `.env.example` เป็น `.env` แล้วกรอกค่า:
+4. สร้างไฟล์ `.env` ที่ root ของโปรเจกต์ (อยู่ใน `.gitignore` แล้ว จะไม่ถูก commit ขึ้น git)
+   แล้วใส่ค่าตามชื่อตัวแปรทั้งหมดนี้ (ดูค่าจริงจาก Firebase Console และ Cloudinary Dashboard):
 
-```bash
-cp .env.example .env
+```
+VITE_FIREBASE_PRIMARY_API_KEY=
+VITE_FIREBASE_PRIMARY_AUTH_DOMAIN=
+VITE_FIREBASE_PRIMARY_PROJECT_ID=
+VITE_FIREBASE_PRIMARY_STORAGE_BUCKET=
+VITE_FIREBASE_PRIMARY_MESSAGING_SENDER_ID=
+VITE_FIREBASE_PRIMARY_APP_ID=
+
+VITE_FIREBASE_SECONDARY_API_KEY=
+VITE_FIREBASE_SECONDARY_AUTH_DOMAIN=
+VITE_FIREBASE_SECONDARY_PROJECT_ID=
+VITE_FIREBASE_SECONDARY_STORAGE_BUCKET=
+VITE_FIREBASE_SECONDARY_MESSAGING_SENDER_ID=
+VITE_FIREBASE_SECONDARY_APP_ID=
+
+VITE_CLOUDINARY_CLOUD_NAME=
+VITE_CLOUDINARY_UPLOAD_PRESET=
 ```
 
 ## 5. ฟอนต์ Sarabun สำหรับ PDF
@@ -143,17 +165,23 @@ npm run dev
 4. ไปที่ repo → Settings → Pages → เลือก branch `gh-pages` เป็น source
 5. เว็บจะพร้อมใช้งานที่ `https://<username>.github.io/classhub-v2/`
 
-## 8. สิ่งที่เหลือให้ทำต่อ (ตามหัวข้อ 13 ในเอกสารออกแบบ)
+## 8. สถานะปัจจุบัน
 
 - [x] วางโครงโปรเจกต์ครบไฟล์ พร้อมรัน
-- [x] โมดูล "เช็คชื่อ & ทำเวร" ทำครบ flow เชื่อม Firestore (2 โปรเจกต์) + Cloudinary จริง
 - [x] แบ่ง Firestore เป็น 2 โปรเจกต์ (primary/secondary) เพื่อกันโควตา read/write เต็ม
-- [ ] เติม UI โมดูล 2 (ติดตาม & ส่งงาน) — โครง Firestore พร้อมแล้วใน `src/types` (อยู่ฝั่ง primary)
-- [ ] เติม UI โมดูล 3 (บัญชี & การเงินห้อง) — `finance` อยู่ secondary, `finance_summary` อยู่ primary
-- [ ] เติม UI โมดูล 4 (ประวัติ + ตัวกรองวันที่ ก่อนเรียก `exportMonthlyPdf`) — ดึงจาก secondary
-- [ ] เติม UI โมดูล 5 (จัดการผู้ใช้ / เปลี่ยนรหัส / ปรับธีม) — ตอนสร้างผู้ใช้ใหม่ต้องเขียนลง
-      ทั้ง 2 โปรเจกต์ (ดูข้อ 3) แนะนำทำเป็นฟอร์มเดียวที่ยิง Firebase Admin SDK ทั้งคู่พร้อมกัน
-- [ ] ตั้งค่า `mustChangePassword` flow บังคับเปลี่ยนรหัสรอบแรกจริง — ต้องเปลี่ยนรหัสผ่าน
-      พร้อมกันทั้ง 2 โปรเจกต์ (primary auth + secondary auth) ไม่งั้นรหัสจะไม่ตรงกันอีกต่อไป
-- [ ] เขียนสคริปต์ Node.js (Firebase Admin SDK) สำหรับสร้าง/แก้บัญชีนักเรียนแบบ "คู่แฝด"
-      ในทั้ง 2 โปรเจกต์อัตโนมัติ แทนการกดมือทีละคนใน Console — ลดความเสี่ยงรหัสสองฝั่งไม่ตรงกัน
+- [x] โมดูล 1 เช็คชื่อ & ทำเวร — ครบ flow 3 สเต็ป + ระบบล็อกสิทธิ์ผู้เช็คชื่อ (กันข้อมูลชนกัน)
+- [x] โมดูล 2 ติดตาม & ส่งงาน — สร้างงาน (แอดมิน) / ส่งรูปการบ้าน (นักเรียน) / Modal ตรวจหลักฐาน
+- [x] โมดูล 3 บัญชี & การเงินห้อง — บันทึกสถานะจ่าย + สรุปยอดอัตโนมัติ (cache ที่ finance_summary)
+- [x] โมดูล 4 ประวัติ & Export PDF — กรองช่วงวันที่ + export PDF ภาษาไทยผ่าน jsPDF+Sarabun
+- [x] โมดูล 5 ผู้ใช้ & ความปลอดภัย — เปลี่ยนรหัสผ่าน (เคลียร์ mustChangePassword อัตโนมัติ) / ปรับธีม / คู่มือใช้งาน
+- [x] สคริปต์ Node.js สร้างบัญชี "คู่แฝด" ทั้งทีละคน (`create-user.js`) และเป็นชุด (`bulk-create-users.js`)
+
+### สิ่งที่ยังเหลือให้พิจารณาต่อ (ไม่กระทบการใช้งานพื้นฐาน)
+
+- [ ] **บังคับเปลี่ยนรหัสผ่านรอบแรกแบบ hard-block** — ตอนนี้แค่โชว์ข้อความเตือนในหน้าโปรไฟล์
+      เท่านั้น ยังไม่ได้ redirect บังคับก่อนเข้าใช้งานโมดูลอื่น (ตัดสินใจแล้วว่าไม่จำเป็นสำหรับตอนนี้)
+- [ ] เพิ่ม npm script alias `create-user` / `bulk-create-users` ใน `package.json`
+      (ตอนนี้ต้องรันตรงด้วย `node scripts/create-user.js -- --id ...`)
+- [ ] `bumpSummary()` ใน `Finance.tsx` เป็น read-then-write ธรรมดา ถ้าแอดมิน 2 คน
+      บันทึกพร้อมกันพอดีอาจมีค่าคลาดเคลื่อนเล็กน้อย — พิจารณาเปลี่ยนไปใช้ Firestore `increment()`
+      หรือ transaction ถ้าห้องมีแอดมินหลายคนใช้งานพร้อมกันบ่อย
