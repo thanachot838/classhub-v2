@@ -85,7 +85,7 @@ function ChangePasswordForm() {
       {status === 'error' && <p className="text-sm text-danger">{errorMsg}</p>}
       <button
         disabled={!current || next.length < 6 || busy}
-        className="rounded-xl bg-brand py-2 text-sm font-semibold text-white disabled:opacity-40"
+        className="rounded-xl bg-accent py-2 text-sm font-semibold text-white disabled:opacity-40"
       >
         {busy ? 'กำลังบันทึก...' : 'บันทึกรหัสผ่านใหม่'}
       </button>
@@ -151,7 +151,7 @@ function ThemeSettingsPanel() {
               className="hidden"
               onChange={(e) => e.target.files?.[0] && handleSlideUpload(i, e.target.files[0])}
             />
-            <span className="text-xs text-brand underline">
+            <span className="text-xs text-accent underline">
               {uploading === `slide-${i}` ? 'กำลังอัป...' : 'เปลี่ยนรูป'}
             </span>
           </label>
@@ -168,7 +168,7 @@ function ThemeSettingsPanel() {
           className="hidden"
           onChange={(e) => e.target.files?.[0] && handleBackgroundUpload(e.target.files[0])}
         />
-        <span className="text-xs text-brand underline">
+        <span className="text-xs text-accent underline">
           {uploading === 'background' ? 'กำลังอัป...' : 'เปลี่ยนพื้นหลัง'}
         </span>
       </label>
@@ -201,8 +201,8 @@ export default function Profile() {
   const { profile } = useAuth();
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-brand">🔐 ผู้ใช้ & ความปลอดภัย</h1>
+    <div className="flex flex-col gap-4" style={{ ['--accent' as string]: 'var(--profile)' }}>
+      <h1 className="text-xl font-bold text-accent">🔐 ผู้ใช้ & ความปลอดภัย</h1>
       <div className="glass-card p-4">
         <p className="font-semibold">{profile?.name}</p>
         <p className="text-sm text-gray-500">

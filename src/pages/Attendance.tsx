@@ -226,7 +226,7 @@ export default function Attendance() {
         </p>
         <button
           onClick={() => claimRole(profile.name)}
-          className="rounded-xl bg-brand px-6 py-3 font-semibold text-white shadow-glass active:scale-95"
+          className="rounded-xl bg-accent px-6 py-3 font-semibold text-white shadow-glass active:scale-95"
         >
           รับสิทธิ์เป็นผู้เช็คชื่อ
         </button>
@@ -241,7 +241,7 @@ export default function Attendance() {
         <div className="text-4xl">🚫</div>
         <h2 className="text-lg font-bold">เช็คชื่อได้เฉพาะผู้ที่ได้รับมอบหมาย</h2>
         <p className="text-sm text-gray-500">
-          ตอนนี้ <span className="font-semibold text-brand">{control?.adminName}</span> เป็นผู้รับผิดชอบเช็คชื่ออยู่
+          ตอนนี้ <span className="font-semibold text-accent">{control?.adminName}</span> เป็นผู้รับผิดชอบเช็คชื่ออยู่
         </p>
       </div>
     );
@@ -268,7 +268,7 @@ export default function Attendance() {
         <p className="text-sm text-gray-500">
           บันทึก {ATTENDANCE_TYPE_LABEL[type!]} ให้ {selected.size} คนแล้ว
         </p>
-        <button onClick={reset} className="rounded-xl bg-brand px-6 py-2 font-semibold text-white">
+        <button onClick={reset} className="rounded-xl bg-accent px-6 py-2 font-semibold text-white">
           บันทึกรายการใหม่
         </button>
       </div>
@@ -279,7 +279,7 @@ export default function Attendance() {
     <div className="flex flex-col gap-5">
       <header className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-brand">🧹 เช็คชื่อ & ทำเวร</h1>
+          <h1 className="text-xl font-bold text-accent">🧹 เช็คชื่อ & ทำเวร</h1>
           <p className="text-sm text-gray-500">ขั้นตอน {step} / 3</p>
         </div>
         <button onClick={releaseRole} className="text-xs text-gray-400 underline">
@@ -294,7 +294,7 @@ export default function Attendance() {
           {isLoading ? (
             <p className="text-sm text-gray-400">กำลังโหลดรายชื่อ...</p>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
               {students.map((s) => {
                 const isSelected = selected.has(s.studentId);
                 return (
@@ -305,9 +305,9 @@ export default function Attendance() {
                     style={
                       isSelected
                         ? {
-                            backgroundColor: '#00B894',
+                            backgroundColor: 'var(--duty)',
                             color: '#ffffff',
-                            boxShadow: '0 0 0 2px #00B894 inset',
+                            boxShadow: '0 0 0 2px var(--duty) inset',
                           }
                         : undefined
                     }
@@ -322,7 +322,7 @@ export default function Attendance() {
           <button
             disabled={selected.size === 0}
             onClick={() => setStep(2)}
-            className="mt-4 w-full rounded-xl bg-brand py-3 font-semibold text-white disabled:opacity-40"
+            className="mt-4 w-full rounded-xl bg-accent py-3 font-semibold text-white disabled:opacity-40"
           >
             ถัดไป
           </button>
@@ -342,9 +342,9 @@ export default function Attendance() {
                 style={
                   type === opt.value
                     ? {
-                        backgroundColor: '#00B894',
+                        backgroundColor: 'var(--duty)',
                         color: '#ffffff',
-                        boxShadow: '0 0 0 2px #00B894 inset',
+                        boxShadow: '0 0 0 2px var(--duty) inset',
                       }
                     : undefined
                 }
@@ -361,7 +361,7 @@ export default function Attendance() {
             <button
               disabled={!type}
               onClick={() => setStep(3)}
-              className="flex-1 rounded-xl bg-brand py-3 font-semibold text-white disabled:opacity-40"
+              className="flex-1 rounded-xl bg-accent py-3 font-semibold text-white disabled:opacity-40"
             >
               ถัดไป
             </button>
@@ -403,7 +403,7 @@ export default function Attendance() {
             <button
               disabled={submit.isPending || !secondaryReady}
               onClick={() => submit.mutate()}
-              className="flex-1 rounded-xl bg-brand py-3 font-semibold text-white disabled:opacity-50"
+              className="flex-1 rounded-xl bg-accent py-3 font-semibold text-white disabled:opacity-50"
             >
               {submit.isPending
                 ? 'กำลังบันทึก...'
@@ -423,8 +423,8 @@ export default function Attendance() {
       {/* ทับทั้งหน้าจอตอนกำลังบันทึก กันกดซ้ำ/กดปุ่มอื่นระหว่างรอ (เช่นแท็บเมนูด้านล่าง) */}
       {submit.isPending && (
         <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-3 bg-white/70 backdrop-blur-sm">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand/20 border-t-brand" />
-          <p className="text-sm font-semibold text-brand">กำลังบันทึก กรุณารอสักครู่...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 spinner-ring" />
+          <p className="text-sm font-semibold text-accent">กำลังบันทึก กรุณารอสักครู่...</p>
         </div>
       )}
     </div>

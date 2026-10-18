@@ -49,6 +49,7 @@ export interface HomeworkTask {
   title: string;
   detail: string;
   deadline: string;
+  links?: string[]; // ลิงก์แนบ (Padlet, Google Drive, อื่น ๆ) — http(s) เท่านั้น
   createdBy: string;
 }
 
@@ -56,7 +57,7 @@ export interface HomeworkSubmission {
   uid: string;
   submittedAt: number;
   verified: boolean;
-  proofUrl: string;
+  proofUrl?: string; // ไม่บังคับแล้ว — นักเรียนแค่ติ๊กว่าทำแล้ว (งานเก่าอาจยังมีรูป)
 }
 
 export interface FinanceSummary {

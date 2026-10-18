@@ -135,7 +135,7 @@ function AddRecordForm({ ym, onDone }: { ym: string; onDone: () => void }) {
             key={s}
             onClick={() => setStatus(s)}
             className={`rounded-xl border py-2 text-sm ${
-              status === s ? 'border-brand bg-brand/10 font-semibold text-brand' : 'border-gray-200'
+              status === s ? 'border-accent bg-accent-soft font-semibold text-accent' : 'border-gray-200'
             }`}
           >
             {PAYMENT_STATUS_LABEL[s]}
@@ -162,7 +162,7 @@ function AddRecordForm({ ym, onDone }: { ym: string; onDone: () => void }) {
         <button
           disabled={!studentId || !amount || create.isPending}
           onClick={() => create.mutate()}
-          className="flex-1 rounded-xl bg-brand py-2 text-sm font-semibold text-white disabled:opacity-40"
+          className="flex-1 rounded-xl bg-accent py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
           {create.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
         </button>
@@ -208,12 +208,12 @@ export default function Finance() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-brand">💰 บัญชี & การเงินห้อง</h1>
+    <div className="flex flex-col gap-4" style={{ ['--accent' as string]: 'var(--finance)' }}>
+      <h1 className="text-xl font-bold text-accent">💰 บัญชี & การเงินห้อง</h1>
 
       <div className="glass-card p-4">
         <p className="text-sm text-gray-500">ยอดรวมเดือน {ym}</p>
-        <p className="text-3xl font-bold text-brand">{(summary?.monthTotal ?? 0).toLocaleString()} บาท</p>
+        <p className="text-3xl font-bold text-accent">{(summary?.monthTotal ?? 0).toLocaleString()} บาท</p>
       </div>
 
       {profile?.role === 'admin' &&
@@ -222,7 +222,7 @@ export default function Finance() {
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="w-full rounded-xl bg-brand py-3 font-semibold text-white shadow-glass active:scale-95"
+            className="w-full rounded-xl bg-accent py-3 font-semibold text-white shadow-glass active:scale-95"
           >
             ➕ บันทึกรายการใหม่
           </button>
@@ -233,7 +233,7 @@ export default function Finance() {
       ) : records.length === 0 ? (
         <div className="glass-card p-6 text-center text-sm text-gray-500">ยังไม่มีรายการเดือนนี้</div>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2 md:grid md:grid-cols-2">
           {records.map((r) => (
             <li key={r.id} className="glass-card flex items-center justify-between p-3">
               <div>

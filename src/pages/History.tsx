@@ -91,8 +91,8 @@ export default function History() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-brand">📄 ประวัติ & Export PDF</h1>
+    <div className="flex flex-col gap-4" style={{ ['--accent' as string]: 'var(--history)' }}>
+      <h1 className="text-xl font-bold text-accent">📄 ประวัติ & Export PDF</h1>
 
       <section className="glass-card flex flex-col gap-3 p-4">
         <div className="grid grid-cols-2 gap-2">
@@ -118,13 +118,13 @@ export default function History() {
         <div className="flex gap-2">
           <button
             onClick={() => setTab('attendance')}
-            className={`flex-1 rounded-xl py-2 text-sm ${tab === 'attendance' ? 'bg-brand text-white font-semibold' : 'border border-gray-200'}`}
+            className={`flex-1 rounded-xl py-2 text-sm ${tab === 'attendance' ? 'bg-accent text-white font-semibold' : 'border border-gray-200'}`}
           >
             🧹 เช็คชื่อ/เวร
           </button>
           <button
             onClick={() => setTab('finance')}
-            className={`flex-1 rounded-xl py-2 text-sm ${tab === 'finance' ? 'bg-brand text-white font-semibold' : 'border border-gray-200'}`}
+            className={`flex-1 rounded-xl py-2 text-sm ${tab === 'finance' ? 'bg-accent text-white font-semibold' : 'border border-gray-200'}`}
           >
             💰 การเงิน
           </button>
@@ -163,7 +163,7 @@ export default function History() {
       <button
         onClick={handleExport}
         disabled={rows.length === 0}
-        className="rounded-xl bg-brand py-3 font-semibold text-white shadow-glass active:scale-95 disabled:opacity-40"
+        className="rounded-xl bg-accent py-3 font-semibold text-white shadow-glass active:scale-95 disabled:opacity-40"
       >
         📥 Export PDF ({from} ถึง {to})
       </button>

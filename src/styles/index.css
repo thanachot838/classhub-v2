@@ -1,18 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@600;700&family=Sarabun:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+  ClassHub v2 — "สมุดจดงานห้องเรียน" (Notebook / Chalkboard theme)
+  แทนที่จานสีม่วงเดียวที่ใช้ซ้ำทุกจุด ด้วยกระดาษอุ่นๆ + เขียวกระดานดำ + สีประจำโมดูล
+  ทุกหน้าตั้ง --accent ของตัวเองผ่าน style บน wrapper แล้ว component ที่ใช้ร่วมกัน
+  (ปุ่ม, badge, การ์ดที่ active) จะอ่านค่าจาก var(--accent) แทนสีตายตัว
+*/
+
 :root {
-  --brand: #6c5ce7;
-  --brand-soft: #a29bfe;
-  --ok: #00b894;
-  --warn: #fdcb6e;
-  --danger: #ff7675;
-  --pending: #74b9ff;
-  --radius: 20px;
-  --blur: 14px;
-  --glass: rgba(255, 255, 255, 0.62);
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  /* ---- base ---- */
+  --paper: #f3efe3;
+  --paper-card: #fffdf6;
+  --ink: #2a2a28;
+  --ink-soft: #6b6a63;
+  --board: #1e3a34;
+  --board-soft: #2c4f47;
+  --line: #e4dcc8;
+
+  /* ---- module accents ---- */
+  --duty: #3e7c59; /* เวร: เขียวมอส */
+  --homework: #b9762d; /* งาน: เหลืองอมน้ำตาล (ดินสอไม้) */
+  --finance: #1f6f78; /* บัญชี: เขียวอมฟ้าเข้ม (บัญชี/เหรียญ) */
+  --history: #6b4a3a; /* ประวัติ: น้ำตาลอบเชย (หมึกโบราณ) */
+  --profile: #a6473f; /* โปรไฟล์: แดงอิฐ */
+
+  /* ---- status (คงไว้ตามเดิม แค่ปรับให้เข้ากับโทนใหม่) ---- */
+  --ok: #3e7c59;
+  --warn: #b9762d;
+  --danger: #a6473f;
+  --pending: #1f6f78;
+
+  --radius: 14px;
+  --shadow: 0 6px 20px rgba(42, 42, 40, 0.08);
+
+  /* default accent เผื่อไม่มีหน้าไหนตั้งเอง */
+  --accent: var(--duty);
 }
 
 html,
@@ -24,38 +49,387 @@ body,
 body {
   margin: 0;
   font-family: 'Sarabun', system-ui, sans-serif;
-  background: linear-gradient(160deg, #eef0ff 0%, #f7f5ff 40%, #fff 100%);
-  color: #2d2d3a;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(42, 42, 40, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 42, 40, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--ink);
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ---- Glass card: the one reusable design token for the whole app ---- */
-.glass-card {
-  background: var(--glass);
-  backdrop-filter: blur(var(--blur));
-  -webkit-backdrop-filter: blur(var(--blur));
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+h1,
+h2,
+h3,
+.font-display {
+  font-family: 'Kanit', 'Sarabun', system-ui, sans-serif;
 }
 
-/* ---- Big card buttons instead of dropdowns (thumb-friendly) ---- */
+/* ---- Page card: กระดาษที่มีรอยหยักบนขอบบนแบบสมุดฉีก (signature element) ---- */
+.page-card {
+  position: relative;
+  background: var(--paper-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+}
+
+.page-card::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 14px;
+  right: 14px;
+  height: 12px;
+  background-image: radial-gradient(circle at 50% 0, transparent 6px, var(--paper) 6.5px);
+  background-size: 16px 12px;
+  background-repeat: repeat-x;
+  pointer-events: none;
+}
+
+/* alias เผื่อโค้ดเก่าอ้างชื่อ glass-card อยู่ที่ไหน จะได้ยังใช้ธีมใหม่ได้ */
+.glass-card {
+  @apply page-card;
+}
+
+/* ---- Big card buttons (thumb-friendly) ---- */
 .card-button {
-  @apply glass-card flex flex-col items-center justify-center gap-2 p-5 text-center transition-transform active:scale-95;
+  background: var(--paper-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  @apply flex flex-col items-center justify-center gap-2 p-5 text-center transition-transform active:scale-95;
 }
 
 .status-chip {
   @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium;
 }
 .status-chip.ok {
-  background: color-mix(in srgb, var(--ok) 18%, white);
-  color: #046c53;
+  background: color-mix(in srgb, var(--ok) 16%, white);
+  color: #205238;
 }
 .status-chip.danger {
-  background: color-mix(in srgb, var(--danger) 18%, white);
-  color: #a12a27;
+  background: color-mix(in srgb, var(--danger) 16%, white);
+  color: #7a2f29;
 }
 .status-chip.pending {
-  background: color-mix(in srgb, var(--pending) 18%, white);
-  color: #1c5c96;
+  background: color-mix(in srgb, var(--pending) 16%, white);
+  color: #164a50;
+}
+
+/* ---- shared accent-aware primitives ---- */
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+  @apply rounded-xl py-3 font-semibold shadow-sm transition active:scale-95 disabled:opacity-40;
+}
+.text-accent {
+  color: var(--accent);
+}
+.border-accent {
+  border-color: var(--accent);
+}
+.bg-accent-soft {
+  background: color-mix(in srgb, var(--accent) 12%, white);
+}
+.bg-accent {
+  background-color: var(--accent);
+}
+.spinner-ring {
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: var(--accent);
+}
+/* คงชื่อ tailwind token เดิม (brand/ok/warn/danger/pending) ให้ยังมองเห็นสีได้
+   เผื่อ tailwind.config.js ของโปรเจกต์ map ไปที่ตัวแปรเหล่านี้อยู่ */
+:root {
+  --brand: var(--duty);
+  --brand-soft: color-mix(in srgb, var(--duty) 55%, white);
+}
+/* fallback เผื่อ tailwind.config.js ไม่มี boxShadow.glass */
+.shadow-glass {
+  box-shadow: var(--shadow);
+}
+
+/* ---- focus visibility ---- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- Desktop sidebar / mobile bottom-nav shell ---- */
+.app-shell {
+  min-height: 100vh;
+}
+@media (min-width: 768px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+  }
+}
+
+.sidebar {
+  display: none;
+}
+@media (min-width: 768px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    background: var(--board);
+    color: #f3efe3;
+    min-height: 100vh;
+    position: sticky;
+    top: 0;
+    padding: 28px 14px;
+    gap: 4px;
+  }
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--board);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px);
+}
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none;
+  }
+}
+
+.main-scroll {
+  padding: 24px 16px 112px;
+}
+@media (min-width: 768px) {
+  .main-scroll {
+    padding: 40px 48px 48px;
+  }
+}
+
+/* =========================================================
+   Login — "สมุดปกเขียว" แบบเปิด-ปิด 3 มิติ
+   รียูสสีจากระบบเดิม (--board = ปกสมุด, --paper-card = กระดาษ,
+   --homework = สีอำพัน, --duty = สีเขียวปุ่มหลัก) ไม่เพิ่มจานสีใหม่
+   ========================================================= */
+:root {
+  --nb-desk: #d8c6a4;
+  --nb-desk-2: #c7b08a;
+  --nb-cover: var(--board);
+  --nb-cover-dark: #12241f;
+  --nb-paper: var(--paper-card);
+  --nb-amber: var(--homework);
+  --nb-ink: var(--ink);
+  --nb-accent: var(--duty);
+  --nb-line-dot: #cde3d6;
+  --nb-line-margin: #e0958a;
+}
+
+.desk-bg {
+  background-color: var(--nb-desk);
+  background-image: radial-gradient(
+    circle at 50% 42%,
+    color-mix(in srgb, var(--nb-desk) 60%, #fff) 0%,
+    var(--nb-desk) 46%,
+    var(--nb-desk-2) 100%
+  );
+}
+
+.notebook-perspective {
+  perspective: 2000px;
+}
+
+.notebook {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.55);
+  background-color: var(--nb-paper);
+}
+
+.notebook-paper-bg {
+  background-color: var(--nb-paper);
+  background-image:
+    linear-gradient(
+      to right,
+      transparent 68px,
+      color-mix(in srgb, var(--nb-line-margin) 55%, transparent) 68px,
+      color-mix(in srgb, var(--nb-line-margin) 55%, transparent) 69px,
+      transparent 69px
+    ),
+    radial-gradient(circle, var(--nb-line-dot) 1.4px, transparent 1.6px);
+  background-size: 100% 100%, 26px 26px;
+  background-position: 0 0, 12px 14px;
+}
+
+.spiral-ring {
+  width: 26px;
+  height: 9px;
+  background: linear-gradient(90deg, #8a9a90 0%, #f4f7f2 48%, #3d4b43 100%);
+  border-radius: 10px;
+  transform: rotate(-5deg);
+  box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+@media (min-width: 640px) {
+  .spiral-ring {
+    width: 40px;
+    height: 13px;
+  }
+}
+.spiral-ring::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 3px;
+  width: 7px;
+  height: 7px;
+  background: var(--nb-cover-dark);
+  border-radius: 50%;
+}
+
+.cover-wrapper {
+  transform-style: preserve-3d;
+  transform-origin: left;
+  transition: transform 0.9s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+.notebook.open .cover-wrapper {
+  transform: rotateY(-180deg);
+}
+.cover-face {
+  backface-visibility: hidden;
+}
+.cover-back {
+  transform: rotateY(180deg);
+  background-image: radial-gradient(circle, var(--nb-line-dot) 1.4px, transparent 1.6px);
+  background-size: 26px 26px;
+  background-position: 12px 14px;
+}
+
+.page-fold-btn {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  width: 120px;
+  height: 120px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.page-fold-triangle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 68px 68px;
+  border-color: transparent transparent var(--nb-paper) transparent;
+  border-bottom-right-radius: 16px;
+  filter: drop-shadow(-5px -5px 8px rgba(0, 0, 0, 0.4));
+  transition: border-width 0.35s cubic-bezier(0.4, 0.2, 0.2, 1), filter 0.35s ease;
+}
+.page-fold-btn:hover .page-fold-triangle,
+.page-fold-btn:focus-visible .page-fold-triangle {
+  border-width: 0 0 92px 92px;
+  filter: drop-shadow(-8px -8px 12px rgba(0, 0, 0, 0.45));
+}
+.page-fold-hint {
+  position: absolute;
+  right: 16px;
+  bottom: 84px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--nb-amber);
+  color: #2a1b08;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  animation: fold-bob 1.8s ease-in-out infinite;
+}
+@keyframes fold-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* ---- typography/color helpers used only inside the notebook login ---- */
+.nb-ink { color: var(--nb-ink); }
+.nb-ink-soft { color: color-mix(in srgb, var(--nb-ink) 60%, transparent); }
+.nb-paper-text { color: var(--nb-paper); }
+.nb-paper-text-soft { color: color-mix(in srgb, var(--nb-paper) 60%, transparent); }
+.nb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nb-accent) 12%, white);
+  color: var(--nb-accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 4px 12px;
+}
+.nb-input {
+  width: 100%;
+  border-radius: 12px;
+  border: 2px solid color-mix(in srgb, var(--nb-ink) 10%, transparent);
+  background: var(--nb-paper);
+  padding: 10px 14px;
+  font-size: 15px;
+  color: var(--nb-ink);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.nb-input:focus {
+  border-color: var(--nb-accent);
+}
+.nb-cta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--nb-accent);
+  color: #fff;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(30, 58, 52, 0.3);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.nb-cta:hover {
+  background: var(--nb-cover-dark);
+}
+.nb-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.nb-close-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--nb-cover);
+  color: var(--nb-paper);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.nb-close-btn:hover {
+  transform: scale(1.05);
+  background: var(--nb-cover-dark);
 }
