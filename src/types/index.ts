@@ -50,14 +50,15 @@ export interface HomeworkTask {
   detail: string;
   deadline: string;
   links?: string[]; // ลิงก์แนบ (Padlet, Google Drive, อื่น ๆ) — http(s) เท่านั้น
+  images?: string[]; // รูปประกอบงาน (อัปผ่าน Cloudinary) — แนบได้หลายรูป
   createdBy: string;
 }
 
 export interface HomeworkSubmission {
   uid: string;
   submittedAt: number;
-  verified: boolean;
-  proofUrl?: string; // ไม่บังคับแล้ว — นักเรียนแค่ติ๊กว่าทำแล้ว (งานเก่าอาจยังมีรูป)
+  verified?: boolean; // เลิกใช้แล้ว (ไม่มีขั้นตอนครูตรวจ) — เก็บไว้เฉพาะให้ข้อมูลเก่า/rules เดิมยังใช้ได้
+  proofUrl?: string; // เลิกใช้แล้ว — นักเรียนแค่ติ๊กว่าทำแล้ว
 }
 
 export interface FinanceSummary {

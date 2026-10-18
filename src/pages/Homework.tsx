@@ -13,11 +13,15 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { uploadProof } from '../lib/cloudinary';
 import { useAuth } from '../context/AuthContext';
 import type { AppUser, HomeworkSubmission, HomeworkTask } from '../types';
 
-// โมดูล 2: Admin สร้าง/ลบงาน + แนบลิงก์ (Padlet, Google Drive) · นักเรียนติ๊ก "ทำแล้ว" · Modal ตรวจงาน
+// โมดูล 2: Admin สร้าง / แก้ไข / ลบงาน + แนบลิงก์ + แนบรูป · นักเรียนติ๊ก "ทำแล้ว"
+// ไม่มีขั้นตอนครูตรวจ — ใช้แค่เช็คว่าใครยังค้างงานอยู่ (Admin กด "ดูสถานะ")
 // homework/{taskId} (db=primary) + subcollection submissions/{uid}
+
+const MAX_IMAGES = 5;
 
 async function fetchTasks(): Promise<HomeworkTask[]> {
   const snap = await getDocs(collection(db, 'homework'));
@@ -45,8 +49,16 @@ async function fetchStudents(): Promise<AppUser[]> {
     .sort((a, b) => a.number - b.number);
 }
 
+/** วันที่วันนี้ตามเวลาเครื่อง (YYYY-MM-DD) — toISOString ใช้ UTC จะเพี้ยนช่วงเช้ามืดของไทย */
+function todayStr() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
 function deadlineBadge(deadline: string) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   if (deadline < today) return <span className="status-chip danger">เลยกำหนด</span>;
   if (deadline === today) return <span className="status-chip pending">วันนี้</span>;
   return <span className="status-chip ok">ยังทัน</span>;
@@ -95,18 +107,76 @@ function TaskLinks({ links }: { links?: string[] }) {
   );
 }
 
-/** ฟอร์มสร้างงานใหม่ (Admin) */
-function CreateTaskForm() {
+/** รูปประกอบงาน — แตะเพื่อดูภาพเต็ม */
+function TaskImages({ images }: { images?: string[] }) {
+  const [viewing, setViewing] = useState<string | null>(null);
+  const list = (images ?? []).filter(Boolean);
+  if (list.length === 0) return null;
+  return (
+    <>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {list.map((url) => (
+          <button
+            key={url}
+            onClick={() => setViewing(url)}
+            className="h-20 w-20 overflow-hidden rounded-xl border border-gray-200"
+            aria-label="ดูรูปเต็ม"
+          >
+            <img src={url} alt="รูปประกอบงาน" loading="lazy" className="h-full w-full object-cover" />
+          </button>
+        ))}
+      </div>
+      {viewing && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4"
+          onClick={() => setViewing(null)}
+        >
+          <img src={viewing} alt="รูปประกอบงาน" className="max-h-[85vh] max-w-full rounded-xl" />
+        </div>
+      )}
+    </>
+  );
+}
+
+/** ฟอร์มสร้าง/แก้ไขงาน (Admin) — ส่ง task เข้ามา = โหมดแก้ไข */
+function TaskForm({ task, onClose }: { task?: HomeworkTask; onClose: () => void }) {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
-  const [subject, setSubject] = useState('');
-  const [title, setTitle] = useState('');
-  const [detail, setDetail] = useState('');
-  const [deadline, setDeadline] = useState(new Date().toISOString().slice(0, 10));
-  const [links, setLinks] = useState<string[]>(['']);
-  const [open, setOpen] = useState(false);
+  const isEdit = !!task;
+  const [subject, setSubject] = useState(task?.subject ?? '');
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [detail, setDetail] = useState(task?.detail ?? '');
+  const [deadline, setDeadline] = useState(task?.deadline ?? todayStr());
+  const [links, setLinks] = useState<string[]>(task?.links?.length ? task.links : ['']);
+  const [images, setImages] = useState<string[]>(task?.images ?? []);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
-  const create = useMutation({
+  async function onPickImages(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ''; // ให้เลือกไฟล์เดิมซ้ำได้
+    if (files.length === 0) return;
+    const room = MAX_IMAGES - images.length;
+    if (room <= 0) {
+      setUploadError(`แนบรูปได้สูงสุด ${MAX_IMAGES} รูป`);
+      return;
+    }
+    setUploading(true);
+    setUploadError('');
+    try {
+      for (const f of files.slice(0, room)) {
+        const url = await uploadProof(f, 'homework');
+        setImages((prev) => [...prev, url]);
+      }
+      if (files.length > room) setUploadError(`แนบรูปได้สูงสุด ${MAX_IMAGES} รูป เลยแนบให้เท่าที่ได้`);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const save = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error('missing');
       const cleaned: string[] = [];
@@ -116,40 +186,33 @@ function CreateTaskForm() {
         if (!url) throw new Error('bad-link');
         cleaned.push(url);
       }
-      await addDoc(collection(db, 'homework'), {
-        subject,
-        title,
+      const data = {
+        subject: subject.trim(),
+        title: title.trim(),
         detail,
         deadline,
         links: cleaned,
-        createdBy: profile.uid,
-        createdAt: serverTimestamp(),
-      });
+        images,
+      };
+      if (task) {
+        await updateDoc(doc(db, 'homework', task.id), { ...data, updatedAt: serverTimestamp() });
+      } else {
+        await addDoc(collection(db, 'homework'), {
+          ...data,
+          createdBy: profile.uid,
+          createdAt: serverTimestamp(),
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homework-tasks'] });
-      setSubject('');
-      setTitle('');
-      setDetail('');
-      setLinks(['']);
-      setOpen(false);
+      onClose();
     },
   });
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="w-full rounded-xl bg-brand py-3 font-semibold text-white shadow-glass active:scale-95"
-      >
-        ➕ สร้างงานใหม่
-      </button>
-    );
-  }
-
   return (
     <section className="glass-card flex flex-col gap-3 p-4">
-      <h2 className="font-semibold">สร้างงานใหม่</h2>
+      <h2 className="font-semibold">{isEdit ? 'แก้ไขงาน' : 'สร้างงานใหม่'}</h2>
       <input
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
@@ -178,6 +241,53 @@ function CreateTaskForm() {
           className="mt-1 w-full rounded-xl border border-gray-200 bg-white/70 px-4 py-2 text-sm"
         />
       </label>
+
+      {/* รูปประกอบงาน */}
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-gray-600">
+          รูปประกอบงาน ({images.length}/{MAX_IMAGES})
+        </p>
+        {images.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {images.map((url) => (
+              <div key={url} className="relative h-20 w-20">
+                <img
+                  src={url}
+                  alt="รูปประกอบงาน"
+                  className="h-full w-full rounded-xl border border-gray-200 object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setImages(images.filter((u) => u !== url))}
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-xs text-white shadow"
+                  aria-label="เอารูปนี้ออก"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {images.length < MAX_IMAGES && (
+          <label
+            className={`self-start cursor-pointer rounded-xl border border-dashed border-brand px-4 py-2 text-sm font-medium text-brand ${
+              uploading ? 'pointer-events-none opacity-50' : ''
+            }`}
+          >
+            {uploading ? 'กำลังอัปโหลด...' : '📷 เพิ่มรูป'}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={onPickImages}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        )}
+        {uploadError && <p className="text-sm text-danger">{uploadError}</p>}
+      </div>
+
       <div className="flex flex-col gap-2">
         <p className="text-sm text-gray-600">ลิงก์แนบ (Padlet / Google Drive / อื่น ๆ)</p>
         {links.map((l, i) => (
@@ -204,57 +314,66 @@ function CreateTaskForm() {
           ＋ เพิ่มลิงก์
         </button>
       </div>
-      {create.isError && (
+
+      {save.isError && (
         <p className="text-sm text-danger">
-          {create.error instanceof Error && create.error.message === 'bad-link'
+          {save.error instanceof Error && save.error.message === 'bad-link'
             ? 'ลิงก์ไม่ถูกต้อง ตรวจสอบอีกครั้ง (ต้องเป็น http/https)'
-            : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'}
+            : (save.error as { code?: string })?.code === 'permission-denied'
+              ? 'บันทึกไม่สำเร็จ: ไม่มีสิทธิ์ (ตรวจ Firestore rules ของ homework)'
+              : 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'}
         </p>
       )}
       <div className="flex gap-2">
         <button
-          onClick={() => setOpen(false)}
+          onClick={onClose}
           className="flex-1 rounded-xl border border-gray-300 py-2 text-sm"
         >
           ยกเลิก
         </button>
         <button
-          disabled={!subject || !title || create.isPending}
-          onClick={() => create.mutate()}
+          disabled={!subject.trim() || !title.trim() || save.isPending || uploading}
+          onClick={() => save.mutate()}
           className="flex-1 rounded-xl bg-brand py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
-          {create.isPending ? 'กำลังบันทึก...' : 'บันทึก'}
+          {save.isPending ? 'กำลังบันทึก...' : isEdit ? 'บันทึกการแก้ไข' : 'บันทึก'}
         </button>
       </div>
     </section>
   );
 }
 
-/** Modal ตรวจหลักฐานของงานหนึ่งชิ้น (Admin) */
-function SubmissionsModal({ task, onClose }: { task: HomeworkTask; onClose: () => void }) {
+function CreateTask() {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full rounded-xl bg-brand py-3 font-semibold text-white shadow-glass active:scale-95"
+      >
+        ➕ สร้างงานใหม่
+      </button>
+    );
+  }
+  return <TaskForm onClose={() => setOpen(false)} />;
+}
+
+/** Modal เช็คว่าใครทำแล้ว / ยังค้างอยู่ (Admin) — ดูอย่างเดียว ไม่มีการตรวจ */
+function StatusModal({ task, onClose }: { task: HomeworkTask; onClose: () => void }) {
   const { data: students = [] } = useQuery({ queryKey: ['students'], queryFn: fetchStudents });
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['homework-submissions', task.id],
     queryFn: () => fetchSubmissions(task.id),
   });
-  const queryClient = useQueryClient();
-  const [viewingUrl, setViewingUrl] = useState<string | null>(null);
 
-  const verify = useMutation({
-    mutationFn: async (uid: string) => {
-      const ref = doc(db, 'homework', task.id, 'submissions', uid);
-      await updateDoc(ref, { verified: true });
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['homework-submissions', task.id] }),
-  });
-
-  const byUid = new Map(submissions.map((s) => [s.uid, s]));
+  const doneIds = new Set(submissions.map((s) => s.uid));
+  const pending = students.filter((s) => !doneIds.has(s.uid));
+  const done = students.filter((s) => doneIds.has(s.uid));
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="glass-card max-h-[85vh] w-full max-w-md overflow-y-auto p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-1 flex items-center justify-between">
           <h2 className="font-bold">{task.title}</h2>
           <button onClick={onClose} className="text-gray-400" aria-label="ปิด">
             ✕
@@ -263,10 +382,12 @@ function SubmissionsModal({ task, onClose }: { task: HomeworkTask; onClose: () =
         {isLoading ? (
           <p className="text-sm text-gray-400">กำลังโหลด...</p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {students.map((s) => {
-              const sub = byUid.get(s.uid);
-              return (
+          <>
+            <p className="mb-3 text-sm text-gray-500">
+              ยังไม่ทำ {pending.length} คน · ทำแล้ว {done.length} คน
+            </p>
+            <ul className="flex flex-col gap-2">
+              {pending.map((s) => (
                 <li
                   key={s.uid}
                   className="flex items-center justify-between rounded-xl bg-white/60 px-3 py-2"
@@ -274,51 +395,76 @@ function SubmissionsModal({ task, onClose }: { task: HomeworkTask; onClose: () =
                   <span className="text-sm">
                     {s.number}. {s.name}
                   </span>
-                  <div className="flex items-center gap-2">
-                    {sub ? (
-                      <>
-                        {sub.proofUrl && (
-                          <button
-                            onClick={() => setViewingUrl(sub.proofUrl ?? null)}
-                            className="text-xs text-brand underline"
-                          >
-                            ดูรูป
-                          </button>
-                        )}
-                        {sub.verified ? (
-                          <span className="status-chip ok">ตรวจแล้ว</span>
-                        ) : (
-                          <button
-                            onClick={() => verify.mutate(s.uid)}
-                            className="status-chip pending"
-                          >
-                            รอตรวจ · แตะเพื่อยืนยัน
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <span className="status-chip danger">ยังไม่ส่ง</span>
-                    )}
-                  </div>
+                  <span className="status-chip danger">ยังไม่ทำ</span>
                 </li>
-              );
-            })}
-          </ul>
-        )}
-        {viewingUrl && (
-          <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4"
-            onClick={() => setViewingUrl(null)}
-          >
-            <img src={viewingUrl} alt="หลักฐานการบ้าน" className="max-h-[80vh] max-w-full rounded-xl" />
-          </div>
+              ))}
+              {done.map((s) => (
+                <li
+                  key={s.uid}
+                  className="flex items-center justify-between rounded-xl bg-white/60 px-3 py-2"
+                >
+                  <span className="text-sm text-gray-500">
+                    {s.number}. {s.name}
+                  </span>
+                  <span className="status-chip ok">ทำแล้ว ✓</span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-/** การ์ดงาน 1 ชิ้น มุมมองนักเรียน — ติ๊กว่าทำแล้ว (ไม่ต้องส่งรูป) */
+/** หน้าต่างเตือนก่อนลบงานจริง */
+function ConfirmDeleteDialog({
+  task,
+  pending,
+  errorText,
+  onConfirm,
+  onCancel,
+}: {
+  task: HomeworkTask;
+  pending: boolean;
+  errorText: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+      <div className="glass-card w-full max-w-sm p-5">
+        <p className="text-lg font-bold text-danger">ลบงานนี้ใช่ไหม?</p>
+        <p className="mt-2 font-semibold">{task.title}</p>
+        <p className="text-xs text-gray-400">
+          {task.subject} · กำหนดส่ง {task.deadline}
+        </p>
+        <p className="mt-3 text-sm text-gray-500">
+          ข้อมูลว่าใครทำแล้วจะถูกลบไปด้วย และกู้คืนไม่ได้
+        </p>
+        {errorText && <p className="mt-2 text-sm text-danger">{errorText}</p>}
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="flex-1 rounded-xl border border-gray-300 py-2 text-sm disabled:opacity-40"
+          >
+            ยกเลิก
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={pending}
+            className="flex-1 rounded-xl bg-danger py-2 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {pending ? 'กำลังลบ...' : 'ลบเลย'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** การ์ดงาน 1 ชิ้น มุมมองนักเรียน — ติ๊กว่าทำแล้ว (ไม่ต้องส่งรูป ไม่ต้องรอตรวจ) */
 function StudentTaskCard({ task }: { task: HomeworkTask }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -332,6 +478,7 @@ function StudentTaskCard({ task }: { task: HomeworkTask }) {
     mutationFn: async (checked: boolean) => {
       if (!profile) throw new Error('missing');
       const ref = doc(db, 'homework', task.id, 'submissions', profile.uid);
+      // verified: false คงไว้เพื่อให้ Firestore rules เดิมที่เคยตรวจฟิลด์นี้ยังผ่าน (ไม่ได้ใช้งานแล้ว)
       if (checked) await setDoc(ref, { submittedAt: Date.now(), verified: false });
       else await deleteDoc(ref);
     },
@@ -343,39 +490,26 @@ function StudentTaskCard({ task }: { task: HomeworkTask }) {
     <div className="glass-card p-4">
       <div className="mb-1 flex items-center justify-between">
         <span className="text-xs font-semibold text-brand">{task.subject}</span>
-        {deadlineBadge(task.deadline)}
+        {mySubmission ? <span className="status-chip ok">ทำแล้ว</span> : deadlineBadge(task.deadline)}
       </div>
       <h3 className="font-semibold">{task.title}</h3>
-      {task.detail && <p className="mt-1 text-sm text-gray-500">{task.detail}</p>}
+      {task.detail && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-500">{task.detail}</p>}
       <p className="mt-1 text-xs text-gray-400">กำหนดส่ง {task.deadline}</p>
+      <TaskImages images={task.images} />
       <TaskLinks links={task.links} />
 
-      {mySubmission?.verified ? (
-        <div className="mt-3 flex items-center gap-2">
-          <span className="status-chip ok">ตรวจแล้ว ✅</span>
-          {mySubmission.proofUrl && (
-            <a href={mySubmission.proofUrl} target="_blank" rel="noreferrer" className="text-xs text-brand underline">
-              ดูรูปที่ส่ง
-            </a>
-          )}
-        </div>
-      ) : (
-        <>
-          <button
-            onClick={() => toggle.mutate(!mySubmission)}
-            disabled={toggle.isPending}
-            aria-pressed={!!mySubmission}
-            className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold transition active:scale-95 disabled:opacity-50 ${
-              mySubmission ? 'bg-brand/10 text-brand' : 'bg-brand text-white'
-            }`}
-          >
-            {mySubmission ? '✓ ทำแล้ว (แตะเพื่อยกเลิก)' : 'ทำแล้ว'}
-          </button>
-          {mySubmission && <p className="mt-2 text-center text-xs text-gray-400">รอครูตรวจ ⏳</p>}
-          {toggle.isError && (
-            <p className="mt-2 text-center text-sm text-danger">บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง</p>
-          )}
-        </>
+      <button
+        onClick={() => toggle.mutate(!mySubmission)}
+        disabled={toggle.isPending}
+        aria-pressed={!!mySubmission}
+        className={`mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-semibold transition active:scale-95 disabled:opacity-50 ${
+          mySubmission ? 'bg-brand/10 text-brand' : 'bg-brand text-white'
+        }`}
+      >
+        {mySubmission ? '✓ ทำแล้ว (แตะเพื่อยกเลิก)' : 'ทำแล้ว'}
+      </button>
+      {toggle.isError && (
+        <p className="mt-2 text-center text-sm text-danger">บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง</p>
       )}
     </div>
   );
@@ -387,7 +521,9 @@ export default function Homework() {
     queryKey: ['homework-tasks'],
     queryFn: fetchTasks,
   });
-  const [modalTask, setModalTask] = useState<HomeworkTask | null>(null);
+  const [statusTask, setStatusTask] = useState<HomeworkTask | null>(null);
+  const [editTask, setEditTask] = useState<HomeworkTask | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HomeworkTask | null>(null);
   const queryClient = useQueryClient();
 
   // Firestore ไม่ลบ subcollection ให้อัตโนมัติ — ลบ submissions ก่อนแล้วค่อยลบตัวงาน
@@ -401,18 +537,23 @@ export default function Homework() {
       }
       await deleteDoc(doc(db, 'homework', task.id));
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['homework-tasks'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['homework-tasks'] });
+      setDeleteTarget(null);
+    },
   });
 
-  function confirmDelete(t: HomeworkTask) {
-    if (window.confirm(`ลบงาน "${t.title}" ?\nข้อมูลการส่งงานของนักเรียนจะถูกลบด้วย`)) remove.mutate(t);
-  }
+  const deleteError = remove.isError
+    ? (remove.error as { code?: string })?.code === 'permission-denied'
+      ? 'ลบไม่สำเร็จ: ไม่มีสิทธิ์ (ตรวจ Firestore rules ของ homework และ submissions)'
+      : 'ลบไม่สำเร็จ ลองใหม่อีกครั้ง'
+    : '';
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold text-brand">📚 ติดตาม & ส่งงาน</h1>
 
-      {profile?.role === 'admin' && <CreateTaskForm />}
+      {profile?.role === 'admin' && <CreateTask />}
 
       {isLoading ? (
         <p className="text-sm text-gray-400">กำลังโหลดรายการงาน...</p>
@@ -422,30 +563,41 @@ export default function Homework() {
         <ul className="flex flex-col gap-2">
           {tasks.map((t) => (
             <li key={t.id} className="glass-card p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-brand">{t.subject}</p>
-                  <p className="font-semibold">{t.title}</p>
-                  <p className="text-xs text-gray-400">กำหนดส่ง {t.deadline}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    onClick={() => confirmDelete(t)}
-                    disabled={remove.isPending}
-                    className="rounded-xl px-3 py-2 text-sm text-danger disabled:opacity-40"
-                    aria-label={`ลบงาน ${t.title}`}
-                  >
-                    🗑
-                  </button>
-                  <button
-                    onClick={() => setModalTask(t)}
-                    className="rounded-xl bg-brand/10 px-3 py-2 text-sm font-semibold text-brand"
-                  >
-                    ตรวจงาน
-                  </button>
-                </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-brand">{t.subject}</p>
+                <p className="font-semibold">{t.title}</p>
+                {t.detail && (
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-gray-500">{t.detail}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-400">กำหนดส่ง {t.deadline}</p>
               </div>
+              <TaskImages images={t.images} />
               <TaskLinks links={t.links} />
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={() => setStatusTask(t)}
+                  className="flex-1 rounded-xl bg-brand/10 px-3 py-2 text-sm font-semibold text-brand"
+                >
+                  ดูสถานะ
+                </button>
+                <button
+                  onClick={() => setEditTask(t)}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  aria-label={`แก้ไขงาน ${t.title}`}
+                >
+                  ✏️ แก้ไข
+                </button>
+                <button
+                  onClick={() => {
+                    remove.reset();
+                    setDeleteTarget(t);
+                  }}
+                  className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-danger"
+                  aria-label={`ลบงาน ${t.title}`}
+                >
+                  🗑 ลบ
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -457,8 +609,25 @@ export default function Homework() {
         </div>
       )}
 
-      {remove.isError && <p className="text-sm text-danger">ลบไม่สำเร็จ ลองใหม่อีกครั้ง</p>}
-      {modalTask && <SubmissionsModal task={modalTask} onClose={() => setModalTask(null)} />}
+      {statusTask && <StatusModal task={statusTask} onClose={() => setStatusTask(null)} />}
+
+      {editTask && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="max-h-[92vh] w-full max-w-md overflow-y-auto">
+            <TaskForm key={editTask.id} task={editTask} onClose={() => setEditTask(null)} />
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <ConfirmDeleteDialog
+          task={deleteTarget}
+          pending={remove.isPending}
+          errorText={deleteError}
+          onConfirm={() => remove.mutate(deleteTarget)}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }

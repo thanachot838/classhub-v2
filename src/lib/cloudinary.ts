@@ -3,15 +3,33 @@ const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 /** บีบรูปเป็น WebP ~150KB ก่อนอัป เพื่อประหยัด bandwidth/CDN quota */
 async function compress(file: File): Promise<Blob> {
-  const bmp = await createImageBitmap(file);
+  let bmp: ImageBitmap;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    throw new Error('เปิดรูปนี้ไม่ได้ ลองใช้รูปแบบ JPG หรือ PNG');
+  }
   const scale = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
-  const canvas = new OffscreenCanvas(
-    Math.round(bmp.width * scale),
-    Math.round(bmp.height * scale)
+  const w = Math.round(bmp.width * scale);
+  const h = Math.round(bmp.height * scale);
+
+  // Safari/มือถือรุ่นเก่าไม่มี OffscreenCanvas จึงถอยไปใช้ canvas ปกติแทน
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const canvas = new OffscreenCanvas(w, h);
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h);
+    return canvas.convertToBlob({ type: 'image/webp', quality: 0.8 });
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('บีบรูปไม่สำเร็จ ลองใหม่อีกครั้ง'))),
+      'image/webp',
+      0.8
+    )
   );
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  return canvas.convertToBlob({ type: 'image/webp', quality: 0.8 });
 }
 
 /**
