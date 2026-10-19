@@ -1,23 +1,15 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   signOut,
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { auth, authSecondary, db } from '../lib/firebase';
-import { uploadProof } from '../lib/cloudinary';
 import { useAuth } from '../context/AuthContext';
-import type { ThemeSettings } from '../types';
 
-// โมดูล 5: เปลี่ยน/รีเซ็ตรหัสผ่าน · ปรับธีม (สไลด์ 3 รูป + พื้นหลัง) · คู่มือใช้งาน
-
-async function fetchTheme(): Promise<ThemeSettings> {
-  const snap = await getDoc(doc(db, 'settings', 'theme'));
-  return snap.exists() ? (snap.data() as ThemeSettings) : { sliderImages: [], backgroundUrl: undefined };
-}
+// โมดูล 5: เปลี่ยนรหัสผ่าน · คู่มือใช้งาน · ออกจากระบบ
 
 /** เปลี่ยนรหัสผ่านพร้อมกันทั้ง 2 โปรเจกต์ ไม่งั้นรหัสจะไม่ตรงกันอีกต่อไป (ดู SETUP.md ข้อ 3/8) */
 function ChangePasswordForm() {
@@ -93,90 +85,9 @@ function ChangePasswordForm() {
   );
 }
 
-/** ปรับธีม: สไลด์ 3 รูป + พื้นหลัง (Admin เท่านั้น ตาม security rules settings/*) */
-function ThemeSettingsPanel() {
-  const { profile } = useAuth();
-  const queryClient = useQueryClient();
-  const { data: theme } = useQuery({ queryKey: ['theme'], queryFn: fetchTheme });
-  const [uploading, setUploading] = useState<string | null>(null);
-
-  const save = useMutation({
-    mutationFn: async (next: ThemeSettings) => setDoc(doc(db, 'settings', 'theme'), next),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['theme'] }),
-  });
-
-  if (profile?.role !== 'admin') return null;
-
-  async function handleSlideUpload(index: number, file: File) {
-    setUploading(`slide-${index}`);
-    try {
-      const url = await uploadProof(file, 'theme');
-      const images = [...(theme?.sliderImages ?? [])];
-      images[index] = url;
-      await save.mutateAsync({ sliderImages: images, backgroundUrl: theme?.backgroundUrl });
-    } finally {
-      setUploading(null);
-    }
-  }
-
-  async function handleBackgroundUpload(file: File) {
-    setUploading('background');
-    try {
-      const url = await uploadProof(file, 'theme');
-      await save.mutateAsync({ sliderImages: theme?.sliderImages ?? [], backgroundUrl: url });
-    } finally {
-      setUploading(null);
-    }
-  }
-
-  return (
-    <section className="glass-card flex flex-col gap-3 p-4">
-      <h2 className="font-semibold">ปรับธีม</h2>
-      <p className="text-sm text-gray-500">สไลด์หน้าแรก (3 รูป)</p>
-      <div className="grid grid-cols-3 gap-2">
-        {[0, 1, 2].map((i) => (
-          <label key={i} className="flex flex-col items-center gap-1">
-            <div className="aspect-square w-full overflow-hidden rounded-xl bg-white/60">
-              {theme?.sliderImages?.[i] ? (
-                <img src={theme.sliderImages[i]} alt={`สไลด์ ${i + 1}`} className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                  ว่าง
-                </div>
-              )}
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleSlideUpload(i, e.target.files[0])}
-            />
-            <span className="text-xs text-accent underline">
-              {uploading === `slide-${i}` ? 'กำลังอัป...' : 'เปลี่ยนรูป'}
-            </span>
-          </label>
-        ))}
-      </div>
-      <p className="text-sm text-gray-500">พื้นหลัง</p>
-      <label className="flex flex-col gap-1">
-        {theme?.backgroundUrl && (
-          <img src={theme.backgroundUrl} alt="พื้นหลัง" className="h-24 w-full rounded-xl object-cover" />
-        )}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => e.target.files?.[0] && handleBackgroundUpload(e.target.files[0])}
-        />
-        <span className="text-xs text-accent underline">
-          {uploading === 'background' ? 'กำลังอัป...' : 'เปลี่ยนพื้นหลัง'}
-        </span>
-      </label>
-    </section>
-  );
-}
-
 function UsageGuide() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [open, setOpen] = useState(false);
   return (
     <section className="glass-card p-4">
@@ -186,9 +97,19 @@ function UsageGuide() {
       </button>
       {open && (
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-gray-600">
-          <li>🧹 เช็คชื่อ & ทำเวร — เลือกนักเรียนหลายคนพร้อมกัน → เลือกประเภท → แนบรูปแล้วยืนยัน</li>
-          <li>📚 ติดตาม & ส่งงาน — นักเรียนอัปรูปการบ้านต่องาน แอดมินตรวจและกดยืนยันทีละคน</li>
-          <li>💰 บัญชี & การเงินห้อง — แอดมินบันทึกสถานะจ่ายเงิน ระบบสรุปยอดให้อัตโนมัติ</li>
+          {isAdmin && (
+            <li>🧹 เช็คชื่อ & ทำเวร — เลือกนักเรียนหลายคนพร้อมกัน → เลือกประเภท → แนบรูปแล้วยืนยัน</li>
+          )}
+          <li>
+            {isAdmin
+              ? '📚 ติดตาม & ส่งงาน — สร้าง/แก้ไข/ลบงาน แนบรูปและลิงก์ได้ นักเรียนกด "ทำแล้ว" เมื่อทำเสร็จ แล้วกด "ดูสถานะ" เพื่อเช็คว่าใครยังค้างงาน'
+              : '📚 ติดตาม & ส่งงาน — ทำงานเสร็จแล้วกด "ทำแล้ว" ถ้ากดผิดแตะอีกครั้งเพื่อยกเลิกได้'}
+          </li>
+          <li>
+            {isAdmin
+              ? '💰 บัญชี & การเงินห้อง — บันทึกรายการ "ได้เงิน" (ยอดเพิ่ม) หรือ "ใช้เงิน" (หักออก) ระบบสรุปยอดคงเหลือให้อัตโนมัติ'
+              : '💰 บัญชี & การเงินห้อง — ดูยอดคงเหลือและรายการรับ-จ่ายของห้องในแต่ละเดือน'}
+          </li>
           <li>📄 ประวัติ & Export PDF — กรองช่วงวันที่แล้วกดปุ่มเพื่อดาวน์โหลดรายงาน</li>
           <li>🔐 ผู้ใช้ & ความปลอดภัย — เปลี่ยนรหัสผ่านของตัวเองได้ที่นี่ตลอดเวลา</li>
         </ol>
@@ -214,7 +135,6 @@ export default function Profile() {
       </div>
 
       <ChangePasswordForm />
-      <ThemeSettingsPanel />
       <UsageGuide />
 
       <button

@@ -155,32 +155,86 @@ h3,
   outline-offset: 2px;
 }
 
-/* ---- Desktop sidebar / mobile bottom-nav shell ---- */
+/* ---- Sidebar เลื่อนเข้า-ออกได้ + top bar + mobile bottom-nav ----
+   มือถือ: sidebar เป็นลิ้นชักซ่อนอยู่ซ้าย กดปุ่ม ☰ เลื่อนออกมา (แตะฉากหลังเพื่อปิด)
+   เดสก์ท็อป: sidebar แสดงอยู่ กดปุ่ม ☰ เพื่อเลื่อนซ่อน/แสดง */
+html {
+  touch-action: manipulation; /* ไม่ต้องรอ/ซูมเวลาแตะรัว ๆ บนมือถือ */
+}
 .app-shell {
   min-height: 100vh;
 }
-@media (min-width: 768px) {
-  .app-shell {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-  }
-}
 
 .sidebar {
-  display: none;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 70;
+  width: min(280px, 82vw);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--board);
+  color: #f3efe3;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) 12px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  overflow-y: auto;
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
 }
-@media (min-width: 768px) {
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    background: var(--board);
-    color: #f3efe3;
-    min-height: 100vh;
-    position: sticky;
-    top: 0;
-    padding: 28px 14px;
-    gap: 4px;
-  }
+.sidebar.open {
+  transform: translateX(0);
+  visibility: visible;
+  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+.sidebar-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(env(safe-area-inset-top, 0px) + 6px) 12px 6px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: inherit;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.icon-btn:active {
+  transform: scale(0.92);
+}
+.topbar .icon-btn:hover {
+  background: rgba(42, 42, 40, 0.07);
+}
+.sidebar .icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .bottom-nav {
@@ -195,18 +249,59 @@ h3,
   justify-content: space-between;
   padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px);
 }
+
+.main-scroll {
+  padding: 16px 16px 112px;
+}
+
 @media (min-width: 768px) {
+  .sidebar {
+    width: 240px;
+    transform: translateX(0);
+    visibility: visible;
+    box-shadow: none;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0s;
+  }
+  .app-shell.collapsed .sidebar {
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
+  }
+  .sidebar-backdrop {
+    display: none;
+  }
+  .main-wrap {
+    padding-left: 240px;
+    transition: padding-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .app-shell.collapsed .main-wrap {
+    padding-left: 0;
+  }
   .bottom-nav {
     display: none;
   }
+  .main-scroll {
+    padding: 24px 48px 48px;
+  }
 }
 
-.main-scroll {
-  padding: 24px 16px 112px;
+/* ---- ใช้งานง่ายบนมือถือ: ช่องกรอกใหญ่พอแตะ + ไม่ให้ iOS ซูมเองตอนโฟกัส (ต้อง 16px ขึ้นไป) ---- */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  select {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+  textarea {
+    font-size: 16px !important;
+  }
 }
-@media (min-width: 768px) {
-  .main-scroll {
-    padding: 40px 48px 48px;
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar-backdrop,
+  .main-wrap {
+    transition: none !important;
   }
 }
 

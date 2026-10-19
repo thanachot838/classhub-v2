@@ -35,6 +35,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** หน้าแรกหลังล็อกอิน: แอดมินเข้าหน้าเวร · นักเรียนเข้าหน้างาน (นักเรียนไม่เห็นโมดูลเวร) */
+function HomeRedirect() {
+  const { profile } = useAuth();
+  return <Navigate to={profile?.role === 'admin' ? '/attendance' : '/homework'} replace />;
+}
+
+/** กันนักเรียนพิมพ์ URL /attendance เข้ามาตรงๆ */
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
+  if (profile?.role !== 'admin') return <Navigate to="/homework" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Routes>
@@ -46,8 +59,15 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Navigate to="/attendance" replace />} />
-        <Route path="/attendance" element={<Attendance />} />
+        <Route path="/" element={<HomeRedirect />} />
+        <Route
+          path="/attendance"
+          element={
+            <AdminOnly>
+              <Attendance />
+            </AdminOnly>
+          }
+        />
         <Route path="/homework" element={<Homework />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/history" element={<History />} />
