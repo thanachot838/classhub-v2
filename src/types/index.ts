@@ -91,6 +91,6 @@ export const ATTENDANCE_TYPE_LABEL: Record<AttendanceType, string> = {
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   paid: 'ได้เงิน ✅',
-  unpaid: 'ไม่ได้ ❌',
+  unpaid: 'ใช้เงิน ❌',
   pending: 'รอยืนยัน ⏳',
 };
