@@ -5,3 +5,4 @@ dist
 *.log
 scripts/serviceAccount.primary.json
 scripts/serviceAccount.secondary.json
+scripts/roster.json
